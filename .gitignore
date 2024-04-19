@@ -10,3 +10,5 @@ keys.py
 /**/keys.py
 /api/build/
 /app/build/
+
+.ipynb_checkpoints

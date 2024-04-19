@@ -1,0 +1,7 @@
+jupyter
+groq
+python-dotenv
+langchain-groq
+fastapi
+uvicorn
+
