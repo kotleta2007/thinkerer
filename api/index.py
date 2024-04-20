@@ -9,6 +9,13 @@ import llm
 import time
 
 
+from langchain.chains import ConversationChain
+from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+from langchain_groq import ChatGroq
+from langchain.prompts import Prompt, PromptTemplate
+import re
+# from langchain_core.prompts.prompt import PromptTemplate
+
 # python -m uvicorn index:app --reload
  
 app = FastAPI()
@@ -74,3 +81,68 @@ def get_message(message):
     res = llm.complete_json(prompt)
     obj = json.loads(res)
     return {"type" : obj['category'], "name" : obj['title']}
+
+#############################################
+
+import prompts
+
+class State():
+    def __init__(self) -> None:
+        self.type_of_model = 3
+
+state = State()
+
+conversational_memory_length = 10
+memory = ConversationBufferWindowMemory(k=conversational_memory_length)
+
+GROQ_API_KEY = prompts.GROQ_API_KEY
+groq_chat = ChatGroq(model="mixtral-8x7b-32768")
+
+conversation = ConversationChain(llm=groq_chat, memory=memory)
+
+@app.get("/mark/{topic}")
+def get_mark(topic):
+    response = ""
+    if len(memory.chat_memory.messages) == 0:
+        # if there's no history, classify the query
+        # and respond accordingly (with the appropriate prompt)
+        template = prompts.CLASS_PROMPT + """
+
+        Current conversation:
+        {history}
+        Human: {input}
+        AI Assistant:"""
+        new_template = PromptTemplate(input_variables=["history", "input"], template=template)
+        conversation = ConversationChain(llm=groq_chat, memory=memory, prompt=new_template)
+        response = conversation(topic)
+        
+        regex = re.compile(r'(\d+).*', flags=re.DOTALL)
+        result = regex.search(response["response"]).group(1)
+        result = int(result) if result is not None else 4
+        state.type_of_model = result
+
+        return get_mark(topic)
+    else:
+        # there is some history
+        # therefore, select the prompt according to the type of conversation
+        print(state.type_of_model)
+        match state.type_of_model:
+            case 1:
+                template = prompts.NEWS_PROMPT
+            case 2:
+                template = prompts.COMPANY_PROMPT 
+            case 3:
+                template = prompts.THINK_PROMPT
+            case _:
+                template = prompts.THINK_PROMPT
+        template = template + """
+            Current conversation:
+            {history}
+            Human: {input}
+            AI Assistant:"""
+
+        new_template = PromptTemplate(input_variables=["history", "input"], template=template)
+        conversation = ConversationChain(llm=groq_chat, memory=memory, prompt=new_template)
+        response = conversation.invoke(topic)
+    return response
+

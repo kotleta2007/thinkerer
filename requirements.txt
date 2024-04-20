@@ -1,6 +1,7 @@
 jupyter
 groq
 python-dotenv
+langchain
 langchain-groq
 fastapi
 uvicorn

@@ -1,7 +1,10 @@
-import keys
+from dotenv import load_dotenv
+import os
 from groq import Groq
 
-client = Groq(api_key=keys.GROQ_API_KEY)
+load_dotenv()
+client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+
 
 def complete_json(text, temperature=0.0,max_tokens=1024,json=False):
     res = client.chat.completions.create(
